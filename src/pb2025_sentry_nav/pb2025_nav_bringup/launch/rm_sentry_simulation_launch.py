@@ -14,10 +14,9 @@
 
 
 import os
-
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription,SetEnvironmentVariable
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, TextSubstitution
@@ -199,7 +198,7 @@ def generate_launch_description():
     )
 
     ld = LaunchDescription()
-
+    ld.add_action(SetEnvironmentVariable('OMP_NUM_THREADS', '4')) 
     # Declare the launch options
     ld.add_action(declare_namespace_cmd)
     ld.add_action(declare_slam_cmd)

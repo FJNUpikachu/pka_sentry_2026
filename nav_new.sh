@@ -1,7 +1,5 @@
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
-# colcon build --symlink-install \
-#   --cmake-args -DCMAKE_BUILD_TYPE=Release \
-#   --parallel-workers 2
+# colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 2
 # colcon build --symlink-install --parallel-workers 2
 # colcon build --packages-select small_gicp_relocalization 
 
