@@ -343,7 +343,7 @@ SmallGicpRelocalizationNode::SmallGicpRelocalizationNode(const rclcpp::NodeOptio
   is_initialized_(false),
   last_scan_time_(0) // 初始化为 0
 {
-    std::cout<<"!11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"<<std::endl;
+    RCLCPP_INFO(this->get_logger(), "OpenMP Max Threads: %d", omp_get_max_threads());
     // 参数声明
     // this->declare_parameter("use_sim_time", false);
     this->declare_parameter("num_threads", 4);
@@ -401,7 +401,6 @@ SmallGicpRelocalizationNode::SmallGicpRelocalizationNode(const rclcpp::NodeOptio
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     tf_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf_buffer_);
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
-
     // 调用加载地图
     loadGlobalMap(prior_pcd_file_);
 
@@ -435,6 +434,7 @@ SmallGicpRelocalizationNode::SmallGicpRelocalizationNode(const rclcpp::NodeOptio
         std::chrono::milliseconds(500), 
         std::bind(&SmallGicpRelocalizationNode::performRegistration, this));
 
+    // 2. 修改 TF 定时器的创建，把它加入到上面那个组里
     transform_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(50), 
         std::bind(&SmallGicpRelocalizationNode::publishTransform, this));
@@ -634,6 +634,8 @@ void SmallGicpRelocalizationNode::refineInitialization(const Eigen::Isometry3d& 
 void SmallGicpRelocalizationNode::performRegistration()
 {
     if (!is_initialized_) return;
+    // === 计时开始 ===
+    // auto start = std::chrono::high_resolution_clock::now();
     pcl::PointCloud<pcl::PointCovariance>::Ptr curr_source;
     std::shared_ptr<small_gicp::KdTree<pcl::PointCloud<pcl::PointCovariance>>> curr_source_tree;
     
@@ -665,6 +667,16 @@ void SmallGicpRelocalizationNode::performRegistration()
         result_t_ = result.T_target_source;
         previous_result_t_ = result.T_target_source;
     }
+    // === 计时结束 ===
+    // auto end = std::chrono::high_resolution_clock::now();
+    // double elapsed_ms = std::chrono::duration<double, std::milli>(end - start).count();
+
+    // // 打印耗时
+    // if (elapsed_ms > 100.0) { // 如果超过100ms就报警告
+    //     RCLCPP_WARN(this->get_logger(), "GICP aligns took too long: %.2f ms", elapsed_ms);
+    // } else {
+    //     RCLCPP_INFO(this->get_logger(), "GICP align time: %.2f ms", elapsed_ms);
+    // }
 }
 
 void SmallGicpRelocalizationNode::publishTransform()

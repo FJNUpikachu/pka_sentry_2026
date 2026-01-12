@@ -1,5 +1,9 @@
-colcon build --symlink-install
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+# colcon build --symlink-install \
+#   --cmake-args -DCMAKE_BUILD_TYPE=Release \
+#   --parallel-workers 2
 # colcon build --symlink-install --parallel-workers 2
+# colcon build --packages-select small_gicp_relocalization 
 
 source install/setup.sh
 
@@ -40,7 +44,7 @@ cmds=(
 world:=rmuc_2025 \
 slam:=False \
 mapping:=False \
-use_composition:=False"
+use_composition:=True"
 # "ros2 run rmoss_gz_base test_chassis_cmd.py --ros-args -r __ns:=/red_standard_robot1/robot_base -p v:=1.0 -p w:=0.3"
 )
 

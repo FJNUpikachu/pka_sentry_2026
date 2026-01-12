@@ -166,10 +166,10 @@ small_gicp_relocalization:
     # ==============================
     # GICP 核心追踪参数 (Fine Tracking)
     # ==============================
-    num_threads: 6             # 并行计算线程数
-    num_neighbors: 15          # 协方差估计的邻近点数
-    global_leaf_size: 2.0      # 全局地图下采样 (米)。注意：室内环境建议 0.25-0.5，室外大场景可用 1.0-2.0
-    registered_leaf_size: 2.0  # 当前雷达帧下采样 (米)
+    num_threads: 8             # 并行计算线程数
+    num_neighbors: 10          # 协方差估计的邻近点数
+    global_leaf_size: 0.5      # 全局地图下采样 (米)。注意：室内环境建议 0.25-0.5，室外大场景可用 1.0-2.0
+    registered_leaf_size: 0.5  # 当前雷达帧下采样 (米)
     max_dist_sq: 0.8           # GICP 最大关联距离的平方 (0.8m^2 约等于 0.9m)
 
     # ==============================
@@ -358,7 +358,7 @@ controller_server:
   ros__parameters:
     use_sim_time: true
     odom_topic: odometry
-    controller_frequency: 20.0
+    controller_frequency: 10.0
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.5
     min_theta_velocity_threshold: 0.001
@@ -510,7 +510,7 @@ map_saver:
 planner_server:
   ros__parameters:
     use_sim_time: true
-    expected_planner_frequency: 10.0
+    expected_planner_frequency: 5.0
     planner_plugins: ["GridBased"]
     GridBased:
       plugin: "nav2_smac_planner/SmacPlannerHybrid"
