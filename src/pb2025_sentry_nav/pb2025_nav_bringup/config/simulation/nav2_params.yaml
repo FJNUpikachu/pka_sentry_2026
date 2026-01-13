@@ -356,144 +356,247 @@ bt_navigator: #恢复逻辑，执行者
 
 controller_server:
   ros__parameters:
-    use_sim_time: true
+    use_sim_time: True
     odom_topic: odometry
-    controller_frequency: 20.0 # MPPI 建议频率高一点，20Hz-30Hz 效果最好
+    controller_frequency: 20.0
     min_x_velocity_threshold: 0.001
-    min_y_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.5
     min_theta_velocity_threshold: 0.001
     failure_tolerance: 0.3
     progress_checker_plugins: ["progress_checker"]
     goal_checker_plugins: ["general_goal_checker"]
     controller_plugins: ["FollowPath"]
-
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
       required_movement_radius: 0.5
       movement_time_allowance: 10.0
-
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.15
-      yaw_goal_tolerance: 0.1 # MPPI 进站很准，可以设小点
-
-    # ================= MPPI 配置开始 =================
-
+      yaw_goal_tolerance: 6.28
     FollowPath:
-      plugin: "nav2_mppi_controller::MPPIController"
+      plugin: "pb_omni_pid_pursuit_controller::OmniPidPursuitController"
+      translation_kp: 3.0
+      translation_ki: 0.1
+      translation_kd: 0.3
+      enable_rotation: false
+      rotation_kp: 3.0
+      rotation_ki: 0.1
+      rotation_kd: 0.3
+      transform_tolerance: 0.1
+      min_max_sum_error: 1.0
+      lookahead_dist: 2.0
+      use_velocity_scaled_lookahead_dist: true
+      lookahead_time: 1.0
+      min_lookahead_dist: 0.5
+      max_lookahead_dist: 1.0
+      use_interpolation: false
+      use_rotate_to_heading: false
+      use_rotate_to_heading_treshold: 0.1
+      min_approach_linear_velocity: 0.5
+      approach_velocity_scaling_dist: 1.0
+      v_linear_min: -2.5
+      v_linear_max: 2.5
+      v_angular_min: -3.0
+      v_angular_max: 3.0
+      curvature_min: 0.4                                # 低曲率阈值，低于此值不减速。
+      curvature_max: 0.7                                # 高曲率阈值，高于此值大幅减速。
+      reduction_ratio_at_high_curvature: 0.5            # 高曲率时的速度降低比例。 0.5 (即减速 50%)
+      curvature_forward_dist: 0.7                       # 前向距离，用于曲率计算
+      curvature_backward_dist: 0.3                      # 后向距离，用于曲率计算
+      max_velocity_scaling_factor_rate: 0.9             # 速度缩放因子的最大变化率
+
+# controller_server:
+#   ros__parameters:
+#     use_sim_time: true
+#     odom_topic: odometry
+#     controller_frequency: 20.0 # MPPI 建议频率高一点，20Hz-30Hz 效果最好
+#     min_x_velocity_threshold: 0.001
+#     min_y_velocity_threshold: 0.001
+#     min_theta_velocity_threshold: 0.001
+#     failure_tolerance: 0.3
+#     progress_checker_plugins: ["progress_checker"]
+#     goal_checker_plugins: ["general_goal_checker"]
+#     controller_plugins: ["FollowPath"]
+
+#     progress_checker:
+#       plugin: "nav2_controller::SimpleProgressChecker"
+#       required_movement_radius: 0.5
+#       movement_time_allowance: 10.0
+
+#     general_goal_checker:
+#       stateful: True
+#       plugin: "nav2_controller::SimpleGoalChecker"
+#       xy_goal_tolerance: 0.15
+#       yaw_goal_tolerance: 0.1 # MPPI 进站很准，可以设小点
+
+#     # ================= MPPI 配置开始 =================
+
+#     FollowPath:
+#       plugin: "nav2_mppi_controller::MPPIController"
       
-      # ==========================================
-      # 1. 轨迹预测与采样 (MPPI 的"大脑")
-      # ==========================================
-      time_steps: 56        # 预测步数。 32 * 0.05s = 1.6秒。
-                            # 调参: 如果机器人跑得很快(>2m/s)容易撞，需要增大此值(如40-50)来看得更远，但会增加CPU负担。
-      model_dt: 0.05        # 每一两步之间的时间间隔 (秒)。通常不改。
-      batch_size: 2000       # 采样数量。每帧生成 600 条随机轨迹。
-                            # 调参: 越大越好(路径越优)，但受限于CPU/GPU性能。如果卡顿，减小它；如果路径很傻，增大它。
+#       # ==========================================
+#       # 1. 轨迹预测与采样 (MPPI 的"大脑")
+#       # ==========================================
+#       time_steps: 32        # 预测步数。 32 * 0.05s = 1.6秒。
+#                             # 调参: 如果机器人跑得很快(>2m/s)容易撞，需要增大此值(如40-50)来看得更远，但会增加CPU负担。
+#       model_dt: 0.05        # 每一两步之间的时间间隔 (秒)。通常不改。
+#       batch_size: 2000       # 采样数量。每帧生成 600 条随机轨迹。
+#                             # 调参: 越大越好(路径越优)，但受限于CPU/GPU性能。如果卡顿，减小它；如果路径很傻，增大它。
       
-      # 采样噪声标准差 (Exploration Noise)
-      # MPPI 通过在速度上加噪声来探索路径。噪声越大，它探索的路越宽，但也越容易抖动。
-      vx_std: 0.5           # X轴速度噪声。如果机器人在此处经常卡住不动，增大它(0.3-0.5)以尝试更多可能性。
-      vy_std: 0.5           # Y轴速度噪声 (全向车专用)。
-      wz_std: 0.4           # 角速度噪声。如果转弯不够灵活，增大它。
+#       # 采样噪声标准差 (Exploration Noise)
+#       # MPPI 通过在速度上加噪声来探索路径。噪声越大，它探索的路越宽，但也越容易抖动。
+#       vx_std: 0.8           # X轴速度噪声。如果机器人在此处经常卡住不动，增大它(0.3-0.5)以尝试更多可能性。
+#       vy_std: 0.8           # Y轴速度噪声 (全向车专用)。
+#       wz_std: 0.4           # 角速度噪声。如果转弯不够灵活，增大它。
       
-      # 迭代与优化
-      iteration_count: 1    # 每次控制循环内部优化的次数。1次通常够了，设为2次会更平滑但双倍耗时。
-      temperature: 0.3      # 温度系数。
-                            # 调参: 
-                            # 小 (0.1): "贪婪模式"，只选得分最高的那条轨迹，走位精准但生硬。
-                            # 大 (1.0): "平均模式"，综合多条较好轨迹，走位平滑但可能不那么贴合最优解。
-      gamma: 0.015          # 控制平滑参数。类似低通滤波，值越大控制越平滑，反应越慢。
+#       # 迭代与优化
+#       iteration_count: 1    # 每次控制循环内部优化的次数。1次通常够了，设为2次会更平滑但双倍耗时。
+#       temperature: 0.3      # 温度系数。
+#                             # 调参: 
+#                             # 小 (0.1): "贪婪模式"，只选得分最高的那条轨迹，走位精准但生硬。
+#                             # 大 (1.0): "平均模式"，综合多条较好轨迹，走位平滑但可能不那么贴合最优解。
+#       gamma: 0.015          # 控制平滑参数。类似低通滤波，值越大控制越平滑，反应越慢。
       
-      # ==========================================
-      # 2. 运动学约束 (机器人的"身体极限")
-      # ==========================================
-      vx_max: 2.5           # 最大前进速度
-      vx_min: -2.5          # 最大后退速度
-      vy_max: 2.5           # 最大横移速度 (Omni专用)
-      wz_max: 3.0           # 最大旋转速度
+#       # ==========================================
+#       # 2. 运动学约束 (机器人的"身体极限")
+#       # ==========================================
+#       vx_max: 2.5           # 最大前进速度
+#       vx_min: -0.2          # 最大后退速度
+#       vy_max: 2.5           # 最大横移速度 (Omni专用)
+#       wz_max: 3.0           # 最大旋转速度
       
-      motion_model: "Omni"  # 运动模型：Diff(差速), Omni(全向), Ackermann(阿克曼)
-      
-      # ==========================================
-      # 3. 可视化 (调试神器)
-      # ==========================================
-      visualize: true       # 在 Rviz 中显示绿色的预测轨迹线。正式比赛建议 false 以节省资源。
-      TrajectoryVisualizer:
-        trajectory_step: 5  # 每隔5条轨迹显示1条 (防止Rviz太乱)
-        time_step: 3        # 每隔3个时间步显示一个点
+#       motion_model: "Ackermann"  # 运动模型：Diff(差速), Omni(全向), Ackermann(阿克曼)
+#       iteration_count: 2
 
-      # ==========================================
-      # 4. 评分器 (Critics - 机器人的"性格")
-      # 这里的权重(cost_weight)决定了机器人更看重什么。
-      # ==========================================
-      critics: ["ConstraintCritic", "CostCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PreferForwardCritic"]
+#       # === 路径处理 ===
+#       prune_distance: 2.0   # 根据速度和视野适当增加
+#       transform_tolerance: 0.1
 
-      # 【约束评分】: 严厉惩罚违反最大/最小速度的行为
-      ConstraintCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 4.0    # 权重通常设为 4.0 - 5.0，确保机器人听话不超速。
+#       # ==========================================
+#       # 3. 可视化 (调试神器)
+#       # ==========================================
+#       visualize: false       # 在 Rviz 中显示绿色的预测轨迹线。正式比赛建议 false 以节省资源。
+#       TrajectoryVisualizer:
+#         trajectory_step: 5  # 每隔5条轨迹显示1条 (防止Rviz太乱)
+#         time_step: 3        # 每隔3个时间步显示一个点
 
-      # 【避障评分】: 核心！基于 Costmap 值避障
-      CostCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 4.0      # 避障权重。
-                              # 调参: 如果机器人贴障碍物太近，增大它 (如 10.0)。如果机器人过不去窄门，减小它。
-        critical_cost: 300.0  # 致命代价阈值。Costmap中障碍物是254，膨胀层递减。
-                              # 设置 300 意味着绝对不允许碰到致命障碍物 (254 < 300)。
-        consider_footprint: false # 设为 false (把机器人当点处理 + 膨胀层) 速度最快。
-        collision_cost: 1000000.0 # 发生碰撞的惩罚分数 (天文数字，确保不会选撞墙的路径)
-        near_goal_distance: 0.5   # 靠近目标 0.5m 内可以稍微无视一点障碍物 (为了停得准)。
+#       # ==========================================
+#       # 4. 评分器 (Critics - 机器人的"性格")
+#       # 这里的权重(cost_weight)决定了机器人更看重什么。
+#       # ==========================================
+#       critics: ["ConstraintCritic","CostCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PreferForwardCritic"]
 
-      # 【目标距离评分】: 拉着机器人往终点跑
-      GoalCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 5.0      # 权重。越大机器人越急着去终点。
-        threshold_to_consider: 1.4 # 距离目标 1.4m 以内才开始生效这个评分。
+#       # 【约束评分】: 严厉惩罚违反最大/最小速度的行为
+#       ConstraintCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 4.0    # 权重通常设为 4.0 - 5.0，确保机器人听话不超速。
 
-      # 【目标角度评分】: 到达终点后的朝向调整
-      GoalAngleCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 3.0      # 权重。如果最后停不正，增大它。
-        threshold_to_consider: 0.5 # 距离目标 0.5m 以内开始调整姿态。
+#       # 【避障评分】: 核心！基于 Costmap 值避障
+#       CostCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 5.0      # 避障权重。
+#                               # 调参: 如果机器人贴障碍物太近，增大它 (如 10.0)。如果机器人过不去窄门，减小它。
+#         critical_cost: 300.0  # 致命代价阈值。Costmap中障碍物是254，膨胀层递减。
+#                               # 设置 300 意味着绝对不允许碰到致命障碍物 (254 < 300)。
+#         consider_footprint: false # 设为 false (把机器人当点处理 + 膨胀层) 速度最快。
+#         collision_cost: 1000000.0 # 发生碰撞的惩罚分数 (天文数字，确保不会选撞墙的路径)
+#         near_goal_distance: 0.5   # 靠近目标 0.5m 内可以稍微无视一点障碍物 (为了停得准)。
+#         trajectory_point_step: 2
 
-      # 【路径对齐评分】: 让机器人保持在全局规划的路线上 (防切角)
-      PathAlignCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 14.0     # 权重。
-                              # 调参: 
-                              # 如果机器人经常"抄近道"切角撞墙，增大它 (>15.0)。
-                              # 如果机器人走得太死板，不肯绕开临时障碍物，减小它 (<10.0)。
-        max_path_occupancy_ratio: 0.05
-        offset_from_furthest: 20
-        use_path_orientations: false # 是否强制车头朝向路径方向。全向车建议 false，允许侧着走。
+#       # 【目标距离评分】: 拉着机器人往终点跑
+#       GoalCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 5.0      # 权重。越大机器人越急着去终点。
+#         threshold_to_consider: 1.4 # 距离目标 1.4m 以内才开始生效这个评分。
 
-      # 【路径跟随评分】: 鼓励机器人沿着路径向前推进
-      PathFollowCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 10.0
-        offset_from_furthest: 5
-        threshold_to_consider: 1.4
+#       # 【目标角度评分】: 到达终点后的朝向调整
+#       GoalAngleCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 3.0      # 权重。如果最后停不正，增大它。
+#         threshold_to_consider: 0.5 # 距离目标 0.5m 以内开始调整姿态。
 
-      # 【前向优先评分】: 鼓励机器人车头朝前走
-      PreferForwardCritic:
-        enabled: true
-        cost_power: 1
-        cost_weight: 5.0      # 权重。
-                              # 调参: 
-                              # 全向车如果设得很高，它会像阿克曼车一样尽量车头朝前走。
-                              # 如果设为 0，它可能会横着飘、斜着走 (更灵活，但可能不好看)。
-        threshold_to_consider: 0.5
+#       # 【路径对齐评分】: 让机器人保持在全局规划的路线上 (防切角)
+#       PathAlignCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 16.0     # 权重。
+#                               # 调参: 
+#                               # 如果机器人经常"抄近道"切角撞墙，增大它 (>15.0)。
+#                               # 如果机器人走得太死板，不肯绕开临时障碍物，减小它 (<10.0)。
+#         max_path_occupancy_ratio: 0.05
+#         trajectory_point_step: 3
+#         threshold_to_consider: 0.5
+#         offset_from_furthest: 20 # 约等于最大预测距离的30% (4m * 30% / 0.05 ≈ 24)，设20很合理
+#         use_path_orientations: false # 是否强制车头朝向路径方向。全向车建议 false，允许侧着走。
+
+#       # 【路径跟随评分】: 鼓励机器人沿着路径向前推进
+#       PathFollowCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 10.0
+#         offset_from_furthest: 5
+#         threshold_to_consider: 1.4
+
+#       # 【前向优先评分】: 鼓励机器人车头朝前走
+#       PreferForwardCritic:
+#         enabled: true
+#         cost_power: 1
+#         cost_weight: 5.0      # 权重。
+#                               # 调参: 
+#                               # 全向车如果设得很高，它会像阿克曼车一样尽量车头朝前走。
+#                               # 如果设为 0，它可能会横着飘、斜着走 (更灵活，但可能不好看)。
+#         threshold_to_consider: 0.5
 
 
 
+# local_costmap:
+#   local_costmap:
+#     ros__parameters:
+#       use_sim_time: true
+#       update_frequency: 10.0
+#       publish_frequency: 5.0
+#       global_frame: odom
+#       robot_base_frame: gimbal_yaw_fake
+#       rolling_window: true
+#       width: 5
+#       height: 5
+#       resolution: 0.05
+#       robot_radius: 0.2
+#       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+#       obstacle_layer:
+#         plugin: "pb_nav2_costmap_2d::IntensityObstacleLayer"
+#         enabled: True
+#         footprint_clearing_enabled: True
+#         min_obstacle_intensity: 0.1
+#         max_obstacle_intensity: 2.0
+#         observation_sources: terrain_map
+#         terrain_map:
+#           # '<robot_namespace>' keyword shall be replaced with 'namespace' where user defined.
+#           # It doesn't need to start with '/'
+#           topic: <robot_namespace>/terrain_map
+#           clearing: True
+#           marking: True
+#           data_type: "PointCloud2"
+#           min_obstacle_height: 0.0
+#           max_obstacle_height: 2.0
+#           obstacle_max_range: 5.0
+#           obstacle_min_range: 0.2
+#           raytrace_max_range: 8.0
+#           raytrace_min_range: 0.2
+#       static_layer:
+#         plugin: "nav2_costmap_2d::StaticLayer"
+#         map_subscribe_transient_local: True
+#       inflation_layer:
+#         plugin: "nav2_costmap_2d::InflationLayer"
+#         cost_scaling_factor: 2.0
+#         inflation_radius: 0.7
+#       always_send_full_costmap: False
 local_costmap:
   local_costmap:
     ros__parameters:
@@ -503,11 +606,17 @@ local_costmap:
       global_frame: odom
       robot_base_frame: gimbal_yaw_fake
       rolling_window: true
-      width: 5
-      height: 5
+      
+      # === 修改 1: 扩大地图尺寸 ===
+      # 配合 MPPI 的长距离预测，防止地图边缘截断路径
+      width: 8
+      height: 8
+      
       resolution: 0.05
       robot_radius: 0.2
+      
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+
       obstacle_layer:
         plugin: "pb_nav2_costmap_2d::IntensityObstacleLayer"
         enabled: True
@@ -515,27 +624,46 @@ local_costmap:
         min_obstacle_intensity: 0.1
         max_obstacle_intensity: 2.0
         observation_sources: terrain_map
+        
         terrain_map:
-          # '<robot_namespace>' keyword shall be replaced with 'namespace' where user defined.
-          # It doesn't need to start with '/'
           topic: <robot_namespace>/terrain_map
           clearing: True
           marking: True
           data_type: "PointCloud2"
-          min_obstacle_height: 0.0
+          
+          # === 修改 2: 抬高最小障碍物高度 ===
+          # 哪怕 C++ 代码有 bug，这里也要设对。
+          # 设为 0.15 或 0.2，尽力过滤掉地面的噪点。
+          # 如果设为 0.0，任何地上的土渣都会被当成墙。
+          min_obstacle_height: 0.15
           max_obstacle_height: 2.0
+          
           obstacle_max_range: 5.0
           obstacle_min_range: 0.2
           raytrace_max_range: 8.0
           raytrace_min_range: 0.2
+
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
+
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 4.0
-        inflation_radius: 0.7
-      always_send_full_costmap: False
+        
+        # === 修改 3: 激进的膨胀层调整 (关键) ===
+        # 原来 2.0 -> 改为 5.0 (甚至 8.0)
+        # 让 Cost 曲线极速衰减，障碍物旁边立刻变安全，
+        # 强行在窄路中间留出通路。
+        cost_scaling_factor: 5.0
+        
+        # === 修改 4: 减小膨胀半径 ===
+        # 原来 0.7 -> 改为 0.45
+        # 只要大于 robot_radius (0.2) 即可，不要太大。
+        inflation_radius: 0.45
+        
+        always_send_full_costmap: False
+
+
 
 global_costmap:
   global_costmap:
@@ -593,42 +721,77 @@ map_saver:
     occupied_thresh_default: 0.65
     map_subscribe_transient_local: True
 
+# planner_server:
+#   ros__parameters:
+#     use_sim_time: true
+#     expected_planner_frequency: 5.0
+#     planner_plugins: ["GridBased"]
+#     GridBased:
+#       plugin: "nav2_smac_planner/SmacPlannerHybrid"
+#       tolerance: 0.5                      # 如果无法到达精确位置的规划容差，单位：米
+#       allow_unknown: true                 # 允许在未知空间中行驶
+#       downsample_costmap: false           # 是否对地图进行下采样
+#       downsampling_factor: 1              # 代价地图层分辨率的倍数 (e.g. 2 on a 5cm costmap would be 10cm)
+#       max_iterations: 1000000             # 搜索的最大总迭代次数（如果无法到达），设置为-1以禁用
+#       max_on_approach_iterations: 1000    # 一旦在容差范围内，尝试到达目标的最大迭代次数
+#       max_planning_time: 3.5              # 规划、平滑和上采样的最大时间（秒）。将根据规划后的剩余时间缩放最大平滑和上采样时间。
+#       cost_travel_multiplier: 2.0         # For 2D: 应用于搜索的代价乘数，以避开高代价区域。较大的值将更精确地放置在通道的中心（如果存在非“FREE”代价势场），但计算时间稍长。为了优化速度，1.0是合理的值。合理的折衷值是2.0。0.0的值有效地禁用避开障碍物的功能，像一个简单的二进制搜索A*。
+#       motion_model_for_search: "DUBIN"    # For Hybrid Dubin, Redds-Shepp
+#       angle_quantization_bins: 64         # For Hybrid nodes: 搜索的角度桶数，对于2D节点必须为1（无角度搜索）
+#       analytic_expansion_ratio: 3.5       # For Hybrid/Lattice nodes: 在搜索过程中尝试解析扩展的比例，用于最终接近。
+#       analytic_expansion_max_length: 3.0  # For Hybrid/Lattice nodes: 解析扩展被认为有效的最大长度，以防止不安全的捷径（单位：米）。这应该与最小转弯半径成比例，不应小于最小半径的4-5倍。
+#       minimum_turning_radius: 0.15        # For Hybrid/Lattice nodes: 路径/车辆的最小转弯半径，单位：米 0.05
+#       retrospective_penalty: 0.025        # For Hybrid/Lattice nodes: 优先考虑路径上较晚的机动而不是较早的机动。节省搜索时间，因为较早的节点不会被扩展，直到有必要。必须 >= 0.0且 <= 1.0
+#       reverse_penalty: 1.0                # For Reeds-Shepp model: 应用于倒车的惩罚，必须 >= 1
+#       change_penalty: 0.0                 # For Hybrid nodes: 应用于改变方向的惩罚，必须 >= 0
+#       non_straight_penalty: 1.20          # For Hybrid nodes: 应用于非直线运动的惩罚，必须 >= 1
+#       cost_penalty: 2.0                   # For Hybrid nodes: 在将更高代价区域添加到障碍物地图动态规划距离扩展启发式时应用的惩罚。这将驱动机器人更靠近通道的中心。1.3 - 3.5 之间的值是合理的。
+#       rotation_penalty: 5.0               # For Lattice node: 仅在使用包含原地旋转原语的最小控制集时应用于纯原地旋转命令的惩罚。除非严格必要用于避开障碍物，否则应始终设置足够高的权重，以避免此操作，否则可能会在路径中频繁出现不连续的情况，要求机器人原地旋转以节省路径距离。
+#       lookup_table_size: 20.0             # For Hybrid nodes: 缓存的dubin/reeds-sheep距离窗口的大小，单位：米。
+#       cache_obstacle_heuristic: True      # For Hybrid nodes: 在同一目标位置的后续重新规划之间缓存障碍物地图动态规划距离扩展启发式。如果代价地图基本静态，则显著加快重新规划性能（40倍）。
+#       allow_reverse_expansion: False      # For Lattice node: 是否在前向原语或反向扩展状态格子图中扩展，将使每一步的分支因子加倍。
+#       smooth_path: True                   # For Lattice/Hybrid nodes: 是否平滑路径，对于2D节点始终为 true。
+#       smoother:
+#         max_iterations: 1000
+#         w_smooth: 0.3
+#         w_data: 0.1
+#         tolerance: 1.0e-10
+#         do_refinement: true
 planner_server:
   ros__parameters:
     use_sim_time: true
     expected_planner_frequency: 5.0
     planner_plugins: ["GridBased"]
+
     GridBased:
-      plugin: "nav2_smac_planner/SmacPlannerHybrid"
+      # 1. 将插件从混合A*更换为标准的2D A*
+      plugin: "nav2_smac_planner/SmacPlanner2D"
+
+      # --- 保留的通用参数 ---
       tolerance: 0.5                      # 如果无法到达精确位置的规划容差，单位：米
       allow_unknown: true                 # 允许在未知空间中行驶
       downsample_costmap: false           # 是否对地图进行下采样
-      downsampling_factor: 1              # 代价地图层分辨率的倍数 (e.g. 2 on a 5cm costmap would be 10cm)
-      max_iterations: 1000000             # 搜索的最大总迭代次数（如果无法到达），设置为-1以禁用
-      max_on_approach_iterations: 1000    # 一旦在容差范围内，尝试到达目标的最大迭代次数
-      max_planning_time: 3.5              # 规划、平滑和上采样的最大时间（秒）。将根据规划后的剩余时间缩放最大平滑和上采样时间。
-      cost_travel_multiplier: 2.0         # For 2D: 应用于搜索的代价乘数，以避开高代价区域。较大的值将更精确地放置在通道的中心（如果存在非“FREE”代价势场），但计算时间稍长。为了优化速度，1.0是合理的值。合理的折衷值是2.0。0.0的值有效地禁用避开障碍物的功能，像一个简单的二进制搜索A*。
-      motion_model_for_search: "DUBIN"    # For Hybrid Dubin, Redds-Shepp
-      angle_quantization_bins: 64         # For Hybrid nodes: 搜索的角度桶数，对于2D节点必须为1（无角度搜索）
-      analytic_expansion_ratio: 3.5       # For Hybrid/Lattice nodes: 在搜索过程中尝试解析扩展的比例，用于最终接近。
-      analytic_expansion_max_length: 3.0  # For Hybrid/Lattice nodes: 解析扩展被认为有效的最大长度，以防止不安全的捷径（单位：米）。这应该与最小转弯半径成比例，不应小于最小半径的4-5倍。
-      minimum_turning_radius: 0.05        # For Hybrid/Lattice nodes: 路径/车辆的最小转弯半径，单位：米
-      retrospective_penalty: 0.025        # For Hybrid/Lattice nodes: 优先考虑路径上较晚的机动而不是较早的机动。节省搜索时间，因为较早的节点不会被扩展，直到有必要。必须 >= 0.0且 <= 1.0
-      reverse_penalty: 1.0                # For Reeds-Shepp model: 应用于倒车的惩罚，必须 >= 1
-      change_penalty: 0.0                 # For Hybrid nodes: 应用于改变方向的惩罚，必须 >= 0
-      non_straight_penalty: 1.20          # For Hybrid nodes: 应用于非直线运动的惩罚，必须 >= 1
-      cost_penalty: 2.0                   # For Hybrid nodes: 在将更高代价区域添加到障碍物地图动态规划距离扩展启发式时应用的惩罚。这将驱动机器人更靠近通道的中心。1.3 - 3.5 之间的值是合理的。
-      rotation_penalty: 5.0               # For Lattice node: 仅在使用包含原地旋转原语的最小控制集时应用于纯原地旋转命令的惩罚。除非严格必要用于避开障碍物，否则应始终设置足够高的权重，以避免此操作，否则可能会在路径中频繁出现不连续的情况，要求机器人原地旋转以节省路径距离。
-      lookup_table_size: 20.0             # For Hybrid nodes: 缓存的dubin/reeds-sheep距离窗口的大小，单位：米。
-      cache_obstacle_heuristic: True      # For Hybrid nodes: 在同一目标位置的后续重新规划之间缓存障碍物地图动态规划距离扩展启发式。如果代价地图基本静态，则显著加快重新规划性能（40倍）。
-      allow_reverse_expansion: False      # For Lattice node: 是否在前向原语或反向扩展状态格子图中扩展，将使每一步的分支因子加倍。
-      smooth_path: True                   # For Lattice/Hybrid nodes: 是否平滑路径，对于2D节点始终为 true。
+      downsampling_factor: 1              # 代价地图层分辨率的倍数
+      max_iterations: 1000000             # 搜索的最大总迭代次数, -1为禁用
+      max_on_approach_iterations: 1000    # 到达容差范围内，尝试到达目标的最大迭代次数
+      max_planning_time: 3.5              # 最大规划时间（秒）
+
+      # --- A* 搜索代价相关参数 ---
+      # 此参数在2D A*中依然有效，用于惩罚高代价值区域，使路径更偏向通道中心
+      cost_travel_multiplier: 2.0
+
+      # 2. 移除了所有SmacPlannerHybrid的特定参数
+      # 例如: minimum_turning_radius, motion_model_for_search, angle_quantization_bins 等...
+
+      # --- 路径平滑器参数 (A*规划后使用) ---
+      # A*生成的原始路径是阶梯状的，平滑器对于获得可用路径至关重要
       smoother:
         max_iterations: 1000
-        w_smooth: 0.3
-        w_data: 0.2
+        w_smooth: 0.3       # 平滑权重，可以适当增大以获得更平滑的路径
+        w_data: 0.1         # 数据权重，控制平滑后的路径与原始A*路径的贴合程度
         tolerance: 1.0e-10
         do_refinement: true
+
 
 smoother_server:
   ros__parameters:
@@ -683,20 +846,47 @@ waypoint_follower:
       enabled: True
       waypoint_pause_duration: 200
 
+# velocity_smoother:
+#   ros__parameters:
+#     use_sim_time: true
+#     smoothing_frequency: 20.0
+#     scale_velocities: False
+#     feedback: "OPEN_LOOP"
+#     max_velocity: [2.5, 2.5, 3.0]
+#     min_velocity: [-2.5, -2.5, -3.0]
+#     max_accel: [4.5, 4.5, 5.0]
+#     max_decel: [-4.5, -4.5, -5.0]
+#     odom_topic: "odometry"
+#     odom_duration: 0.1
+#     deadband_velocity: [0.0, 0.0, 0.0]
+#     velocity_timeout: 1.0
 velocity_smoother:
   ros__parameters:
     use_sim_time: true
-    smoothing_frequency: 20.0
+    smoothing_frequency: 20.0 # 保持与 Controller 一致
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [2.5, 2.5, 3.0]
-    min_velocity: [-2.5, -2.5, -3.0]
-    max_accel: [4.5, 4.5, 5.0]
-    max_decel: [-4.5, -4.5, -5.0]
+    
+    # === 修改 1: 速度上限给足 ===
+    # 确保比 MPPI 的 vx_max (2.5) 大一点点，防止边缘被切
+    max_velocity: [3.0, 3.0, 4.0]  
+    min_velocity: [-3.0, -3.0, -4.0]
+    
+    # === 修改 2: 加速度限制彻底放开 (关键) ===
+    # 原来 4.5 -> 改为 20.0
+    # 这样即使 MPPI 发出剧烈的避障指令，Smoother 也会照单全收，不会认为是异常而过滤掉
+    max_accel: [20.0, 20.0, 20.0]
+    max_decel: [-20.0, -20.0, -20.0]
+    
     odom_topic: "odometry"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
-    velocity_timeout: 1.0
+    
+    # === 修改 3: 延长超时时间 ===
+    # 原来 1.0 -> 改为 2.0
+    # 给上游规划器更多的喘息时间
+    velocity_timeout: 2.0
+
 
 pb_teleop_twist_joy_node:
   ros__parameters:
