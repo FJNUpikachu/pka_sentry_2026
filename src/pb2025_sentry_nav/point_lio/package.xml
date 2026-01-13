@@ -29,9 +29,6 @@
   <depend>livox_ros_driver2</depend>
   <depend>libunwind-dev</depend>
   <depend>libgoogle-glog-dev</depend>
-  <depend>rm_utils</depend>
-  <depend>cv_bridge</depend>
-  <depend>image_transport</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

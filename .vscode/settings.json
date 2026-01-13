@@ -1,3 +1,4 @@
 {
-    "git.ignoreLimitWarning": true
+    "git.ignoreLimitWarning": true,
+    "cmake.sourceDirectory": "/home/zwt/2026/2026navigation/RM_pka_nav/src/pb2025_robot_description"
 }

@@ -106,8 +106,8 @@ def generate_launch_description():
     declare_scd_directory_cmd = DeclareLaunchArgument(
         "scd_directory",
         default_value=[
-            TextSubstitution(text=os.path.join(bringup_dir, "SCD", "simulation", "")),
-            world,
+            # TextSubstitution(text=os.path.join(bringup_dir, "SCD", "simulation", "")),
+            # world,
         ],
         description="Full path to map file to load",
     )
@@ -115,9 +115,9 @@ def generate_launch_description():
     declare_pose_file_cmd = DeclareLaunchArgument(
         "pose_file",
         default_value=[
-            TextSubstitution(text=os.path.join(bringup_dir, "pose", "simulation", "")),
-            world,
-            TextSubstitution(text=".txt"),
+            # TextSubstitution(text=os.path.join(bringup_dir, "pose", "simulation", "")),
+            # world,
+            # TextSubstitution(text=".txt"),
         ],
         description="Full path to prior pcd file to load",
     )

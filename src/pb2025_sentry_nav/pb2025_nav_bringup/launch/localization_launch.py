@@ -164,7 +164,7 @@ def generate_launch_description():
                 output="screen",
                 respawn=use_respawn,
                 respawn_delay=2.0,
-                parameters=[configured_params, {"prior_pcd_file": prior_pcd_file},{"scd_directory":scd_directory},{"pose_file":pose_file}],
+                parameters=[configured_params, {"prior_pcd_file": prior_pcd_file}],
                 arguments=["--ros-args", "--log-level", log_level],
             ),
             Node(

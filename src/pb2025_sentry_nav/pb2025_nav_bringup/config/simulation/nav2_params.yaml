@@ -156,51 +156,65 @@ fake_vel_transform:
 #     # The prior_pcd_file does not need to be specified since it going to be set by defaults in launch.
 #     # prior_pcd_file: ""
 
+# small_gicp_relocalization:
+#   ros__parameters:
+#     use_sim_time: True
+#     num_threads: 4
+#     num_neighbors: 20
+#     global_leaf_size: 0.1
+#     registered_leaf_size: 0.05
+#     max_dist_sq: 3.0
+#     map_frame: "map"
+#     odom_frame: "odom"
+#     base_frame: "base_footprint"
+#     robot_base_frame: "gimbal_yaw"
+#     lidar_frame: "front_mid360"
+#     init_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]   # [x, y, z, roll, pitch, yaw]
+#     # The prior_pcd_file does not need to be specified since it going to be set by defaults in launch.
+#     # prior_pcd_file: ""
 small_gicp_relocalization:
   ros__parameters:
-    # ==============================
-    # 基础系统设置
-    # ==============================
     use_sim_time: True
     
-    # ==============================
-    # GICP 核心追踪参数 (Fine Tracking)
-    # ==============================
-    num_threads: 8             # 并行计算线程数
-    num_neighbors: 10          # 协方差估计的邻近点数
-    global_leaf_size: 0.5      # 全局地图下采样 (米)。注意：室内环境建议 0.25-0.5，室外大场景可用 1.0-2.0
-    registered_leaf_size: 0.5  # 当前雷达帧下采样 (米)
-    max_dist_sq: 0.8           # GICP 最大关联距离的平方 (0.8m^2 约等于 0.9m)
+    # 线程数：根据你的CPU核心数调整，通常 4 或 6
+    num_threads: 4
+    
+    # --- GICP 核心优化参数 ---
+    
+    # [关键修改 1] 降采样精度：从 0.25 改为 0.1
+    # 0.25m 太稀疏，导致很难提取出平整的墙面特征。0.1m 是室外/室内通用的平衡点。
+    global_leaf_size: 0.1      # 全局地图降采样 (米)
+    registered_leaf_size: 0.1  # 当前雷达帧降采样 (米)
+    
+    # [关键修改 2] 近邻搜索数：从 20 改为 10
+    # 配合 0.1 的网格，找 10 个邻居足以确定一个 0.3m 范围内的平面。
+    # 邻居太多会将“墙面”和“地面”混在一起，导致协方差矩阵变成球形，GICP 就会失效。
+    num_neighbors: 10
+    
+    # [关键修改 3] 最大匹配距离平方：从 1.0 改为 4.0
+    # 1.0 (1米) 太严苛。4.0 (2米) 给 GICP 更多容错空间去拉近点云。
+    # 只要 NDT 把误差控制在 2米以内，GICP 就能接手。
+    max_dist_sq: 4.0
+    
+    # --- NDT 粗配准参数 ---
+    # 分辨率 1.0m 适合大多数场景，能快速通过体素栅格锁定大致位置
+    ndt_resolution: 1.0
+    ndt_step_size: 0.1
+    ndt_epsilon: 0.01
 
-    # ==============================
-    # TF 坐标系定义
-    # ==============================
+    # --- TF 坐标系 (保持你的设置) ---
     map_frame: "map"
     odom_frame: "odom"
     base_frame: "base_footprint"
-    robot_base_frame: "gimbal_yaw"  # 用于计算初始位姿的机器人基准坐标系
-    lidar_frame: "front_mid360"     # 激光雷达坐标系
+    robot_base_frame: "gimbal_yaw"
+    lidar_frame: "front_mid360"
+    
+    # 初始位姿 (通常由 Rviz 的 2D Pose Estimate 覆盖，这里只是默认值)
+    init_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    
+    input_cloud_topic: "registered_scan"
 
-    # ==============================
-    # ScanContext 全局重定位 (Coarse Init)
-    # ==============================
-    enable_sc_relocalization: true # 默认关闭 (false=从原点启动; true=使用SC重定位)
-    sc_dist_thresh: 0.5             # 描述子匹配阈值 (越小越严格，范围 0.1-0.8)
 
-    # ==============================
-    # NDT 粗配准 (Refinement after SC)
-    # ==============================
-    ndt_resolution: 1.0        # NDT 网格大小 (米)，用于SC定位后的姿态修正
-    ndt_step_size: 0.1         # 梯度下降步长
-    ndt_epsilon: 0.01          # 收敛阈值
-    ndt_max_iterations: 35     # 最大迭代次数
-
-    # ==============================
-    # 文件路径 (建议在 Launch 中传入，此处留空)
-    # ==============================
-    prior_pcd_file: ""
-    scd_directory: ""
-    pose_file: ""
 
 
 pointcloud_to_laserscan:
