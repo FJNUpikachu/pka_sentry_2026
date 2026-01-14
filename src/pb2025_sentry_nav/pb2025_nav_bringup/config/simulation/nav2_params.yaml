@@ -143,7 +143,7 @@ fake_vel_transform:
 small_gicp_relocalization:
   ros__parameters:
     use_sim_time: True
-    
+    debug: false
     # 线程数：根据你的CPU核心数调整，通常 4 或 6
     num_threads: 4
     

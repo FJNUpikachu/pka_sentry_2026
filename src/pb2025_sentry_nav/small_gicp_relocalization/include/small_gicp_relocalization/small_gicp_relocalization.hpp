@@ -78,7 +78,9 @@ private:
 
   double force_clear_costmap_threshold_;
   double costmap_clear_cooldown_;
-
+  // [新增] 调试模式开关
+  bool debug_;
+  
   std::vector<double> init_pose_;
   
   std::string map_frame_;
