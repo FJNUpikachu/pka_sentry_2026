@@ -143,33 +143,19 @@ fake_vel_transform:
 small_gicp_relocalization:
   ros__parameters:
     use_sim_time: True
-    debug: false
-    # 线程数：根据你的CPU核心数调整，通常 4 或 6
-    num_threads: 6
-    
-    # --- GICP 核心优化参数 ---
-    global_leaf_size: 1.0      # 全局地图降采样 (米)
-    registered_leaf_size: 1.0  # 当前雷达帧降采样 (米)
-    
-    num_neighbors: 30
-    
-    max_dist_sq: 9.0
-    
-    # --- NDT 粗配准参数 ---
-    ndt_resolution: 2.0
-    ndt_step_size: 0.1
-    ndt_epsilon: 0.01
-
+    num_threads: 4
+    num_neighbors: 20
+    global_leaf_size: 0.1
+    registered_leaf_size: 0.05
+    max_dist_sq: 3.0
     map_frame: "map"
     odom_frame: "odom"
     base_frame: "base_footprint"
     robot_base_frame: "gimbal_yaw"
     lidar_frame: "front_mid360"
-    
-    init_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    
-    input_cloud_topic: "registered_scan"
-
+    init_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]   # [x, y, z, roll, pitch, yaw]
+    # The prior_pcd_file does not need to be specified since it going to be set by defaults in launch.
+    # prior_pcd_file: ""
 
 
 pointcloud_to_laserscan:
@@ -346,25 +332,25 @@ controller_server:
       yaw_goal_tolerance: 6.28
     FollowPath:
       plugin: "pb_omni_pid_pursuit_controller::OmniPidPursuitController"
-      translation_kp: 1.5 #降低->减少猛冲猛停和路径震荡
-      translation_ki: 0.1 # 保持->消除稳态误差
-      translation_kd: 0.5 # 增加->增加一点阻尼，抑制震荡
+      translation_kp: 3.0
+      translation_ki: 0.1
+      translation_kd: 0.3
       enable_rotation: false
-      rotation_kp: 2.0 # 降低->让旋转更柔和
+      rotation_kp: 3.0
       rotation_ki: 0.1
       rotation_kd: 0.3
       transform_tolerance: 0.1
       min_max_sum_error: 1.0
       lookahead_dist: 2.0
       use_velocity_scaled_lookahead_dist: true
-      lookahead_time: 1.5
-      min_lookahead_dist: 0.4
-      max_lookahead_dist: 2.0
-      use_interpolation: true #这是平滑的关键
+      lookahead_time: 1.0
+      min_lookahead_dist: 0.5
+      max_lookahead_dist: 1.0
+      use_interpolation: false
       use_rotate_to_heading: false
       use_rotate_to_heading_treshold: 0.1
-      min_approach_linear_velocity: 0.1
-      approach_velocity_scaling_dist: 1.5
+      min_approach_linear_velocity: 0.5
+      approach_velocity_scaling_dist: 1.0
       v_linear_min: -2.5
       v_linear_max: 2.5
       v_angular_min: -3.0
@@ -573,14 +559,15 @@ map_saver:
 
 planner_server:
   ros__parameters:
+    use_sim_time: True
+    expected_planner_frequency: 10.0
     planner_plugins: ["GridBased"]
-    use_sim_time: true
-
     GridBased:
-      plugin: "nav2_theta_star_planner/ThetaStarPlanner"
-      how_many_corners: 8      # 允许向8个方向扩展
-      w_euc_cost: 1.0          # 距离权重
-      w_traversal_cost: 2.0    # 穿越高代价区域的惩罚权重 (类似于 Smac 的 cost_travel_multiplier)
+      plugin: "nav2_theta_star_planner/ThetaStarPlanner" # In Iron and older versions, "/" was used instead of "::"
+      how_many_corners: 8
+      w_euc_cost: 1.0
+      w_traversal_cost: 10.0
+      w_heuristic_cost: 1.0
 
 # planner_server:
 #   ros__parameters:

@@ -23,15 +23,11 @@
 #include "pcl/io/pcd_io.h"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
-
-// Small GICP includes
 #include "small_gicp/ann/kdtree_omp.hpp"
 #include "small_gicp/factors/gicp_factor.hpp"
 #include "small_gicp/pcl/pcl_point.hpp"
 #include "small_gicp/registration/reduction_omp.hpp"
 #include "small_gicp/registration/registration.hpp"
-
-// TF2
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/transform_listener.h"
@@ -54,23 +50,13 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pcd_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initial_pose_sub_;
 
-  // --- Parameters ---
   int num_threads_;
   int num_neighbors_;
   float global_leaf_size_;
   float registered_leaf_size_;
   float max_dist_sq_;
-
-  // NDT Params
-  double ndt_resolution_;
-  double ndt_step_size_;
-  double ndt_epsilon_;
-
-  // [保留] 调试模式开关
-  bool debug_; 
-
   std::vector<double> init_pose_;
-  
+
   std::string map_frame_;
   std::string odom_frame_;
   std::string prior_pcd_file_;
@@ -79,24 +65,18 @@ private:
   std::string lidar_frame_;
   std::string current_scan_frame_id_;
   std::string input_cloud_topic_;
-
   rclcpp::Time last_scan_time_;
-
   Eigen::Isometry3d result_t_;
   Eigen::Isometry3d previous_result_t_;
 
-  // Clouds
   pcl::PointCloud<pcl::PointXYZ>::Ptr global_map_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr registered_scan_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr accumulated_cloud_;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud_xyz_; // NDT target
-
-  // GICP specific source/target (Covariance format)
   pcl::PointCloud<pcl::PointCovariance>::Ptr target_;
   pcl::PointCloud<pcl::PointCovariance>::Ptr source_;
 
   std::shared_ptr<small_gicp::KdTree<pcl::PointCloud<pcl::PointCovariance>>> target_tree_;
   std::shared_ptr<small_gicp::KdTree<pcl::PointCloud<pcl::PointCovariance>>> source_tree_;
-
   std::shared_ptr<
     small_gicp::Registration<small_gicp::GICPFactor, small_gicp::ParallelReductionOMP>>
     register_;

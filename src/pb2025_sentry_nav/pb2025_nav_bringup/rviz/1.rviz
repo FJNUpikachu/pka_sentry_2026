@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /Controller1
       Splitter Ratio: 0.5833333134651184
     Tree Height: 951
   - Class: rviz_common/Selection
@@ -41,6 +42,109 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        armor_0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        armor_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        armor_2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        armor_3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        armor_support_frame_0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        armor_support_frame_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        armor_support_frame_2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        armor_support_frame_3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_footprint:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        chassis:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_industrial_camera:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_industrial_camera_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_left_wheel:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_mid360:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_right_wheel:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gimbal_pitch:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gimbal_yaw:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        light_indicator:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_left_wheel:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_right_wheel:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        speed_monitor:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
       Mass Properties:
         Inertia: false
         Mass: false
@@ -54,18 +158,102 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        armor_0:
+          Value: true
+        armor_1:
+          Value: true
+        armor_2:
+          Value: true
+        armor_3:
+          Value: true
+        armor_support_frame_0:
+          Value: true
+        armor_support_frame_1:
+          Value: true
+        armor_support_frame_2:
+          Value: true
+        armor_support_frame_3:
+          Value: true
+        base_footprint:
+          Value: true
+        chassis:
+          Value: true
+        front_industrial_camera:
+          Value: true
+        front_industrial_camera_optical_frame:
+          Value: true
+        front_left_wheel:
+          Value: true
+        front_mid360:
+          Value: true
+        front_right_wheel:
+          Value: true
+        gimbal_pitch:
+          Value: true
+        gimbal_yaw:
+          Value: true
+        gimbal_yaw_fake:
+          Value: true
+        light_indicator:
+          Value: true
+        map:
+          Value: true
+        odom:
+          Value: true
+        rear_left_wheel:
+          Value: true
+        rear_right_wheel:
+          Value: true
+        speed_monitor:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        map:
+          odom:
+            base_footprint:
+              chassis:
+                armor_support_frame_0:
+                  armor_0:
+                    {}
+                armor_support_frame_1:
+                  armor_1:
+                    {}
+                armor_support_frame_2:
+                  armor_2:
+                    {}
+                armor_support_frame_3:
+                  armor_3:
+                    {}
+                front_left_wheel:
+                  {}
+                front_mid360:
+                  {}
+                front_right_wheel:
+                  {}
+                gimbal_yaw:
+                  gimbal_pitch:
+                    front_industrial_camera:
+                      front_industrial_camera_optical_frame:
+                        {}
+                    speed_monitor:
+                      {}
+                  gimbal_yaw_fake:
+                    {}
+                light_indicator:
+                  {}
+                rear_left_wheel:
+                  {}
+                rear_right_wheel:
+                  {}
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/Axes
       Enabled: false
-      Length: 0.699999988079071
+      Length: 1
       Name: GimbalYawFake
       Radius: 0.10000000149011612
       Reference Frame: gimbal_yaw_fake
@@ -82,28 +270,28 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 0
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: Obstacle Scan
+      Name: LaserScan
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.05000000074505806
-      Style: Boxes
+      Size (m): 0.009999999776482582
+      Style: Points
       Topic:
         Depth: 5
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: obstacle_scan
+        Value: rplidar_a2/scan
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 0.20000000298023224
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -153,10 +341,10 @@ Visualization Manager:
       Enabled: true
       Invert Rainbow: true
       Max Color: 255; 255; 255
-      Max Intensity: 0.2
+      Max Intensity: 0.10000000149011612
       Min Color: 0; 0; 0
-      Min Intensity: -0.2
-      Name: TerrainMapExt
+      Min Intensity: -0.10000000149011612
+      Name: TerrainMap
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
@@ -168,7 +356,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: terrain_map_ext
+        Value: terrain_map
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -283,6 +471,40 @@ Visualization Manager:
           Use Timestamp: false
           Value: true
         - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz_default_plugins/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: FlatColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: STVL Layer Voxels
+          Position Transformer: XYZ
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.05000000074505806
+          Style: Boxes
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: local_costmap/voxel_grid
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+        - Alpha: 1
           Buffer Length: 1
           Class: rviz_default_plugins/Path
           Color: 0; 12; 255
@@ -308,7 +530,7 @@ Visualization Manager:
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: local_plan
+            Value: /red_standard_robot1/transformed_global_plan
           Value: true
         - Alpha: 0.800000011920929
           Class: rviz_default_plugins/PointStamped
@@ -342,7 +564,7 @@ Visualization Manager:
       Name: Controller
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
-      Name: WayPoints
+      Name: Mppi
       Namespaces:
         {}
       Topic:
@@ -350,7 +572,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: waypoints
+        Value: /trajectories
       Value: true
   Enabled: true
   Global Options:
@@ -382,7 +604,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 31.188777923583984
+      Distance: 31.64445686340332
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -418,5 +640,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1978
-  X: 140
+  X: 2118
   Y: 54
