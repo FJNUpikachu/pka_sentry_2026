@@ -94,7 +94,7 @@ void IntensityVoxelLayer::updateBounds(
 
   // !!! CRITICAL OPTIMIZATION !!!
   // 1. 禁用全局 Costmap 重置: 防止地图闪烁和动态障碍物立即消失。
-  // resetMaps(); 
+  resetMaps(); 
 
   // 2. 启用 Voxel Grid 重置: 确保每一帧的体素统计是独立的，
   //    防止旧的噪声计数累积导致误报。
