@@ -164,7 +164,7 @@ small_gicp_relocalization:
     use_sim_time: True
     debug: false
     use_ndt: true
-    error_threshold: 0.5
+    error_threshold: 0.2
     skip_step: 2
     num_threads: 4
     num_neighbors: 20
