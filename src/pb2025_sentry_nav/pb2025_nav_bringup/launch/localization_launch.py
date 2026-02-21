@@ -163,6 +163,20 @@ def generate_launch_description():
                 arguments=["--ros-args", "--log-level", log_level],
             ),
             Node(
+                package="pointcloud_to_laserscan",
+                executable="pointcloud_to_laserscan_node",
+                name="pointcloud_to_laserscan",
+                output="screen",
+                respawn=use_respawn,
+                respawn_delay=2.0,
+                parameters=[configured_params],
+                arguments=["--ros-args", "--log-level", log_level],
+                remappings=[
+                    ("cloud_in", "terrain_map"),
+                    ("scan", "obstacle_scan"),
+                ],
+            ),
+            Node(
                 condition=IfCondition(PythonExpression(["not ", slam])),
                 package="small_gicp_relocalization",
                 executable="small_gicp_relocalization_node",

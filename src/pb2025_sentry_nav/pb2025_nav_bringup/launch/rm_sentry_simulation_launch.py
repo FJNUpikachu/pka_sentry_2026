@@ -167,7 +167,7 @@ def generate_launch_description():
 
     declare_rviz_config_file_cmd = DeclareLaunchArgument(
         "rviz_config_file",
-        default_value=os.path.join(bringup_dir, "rviz", "123.rviz"),
+        default_value=os.path.join(bringup_dir, "rviz", "12.rviz"),
         description="Full path to the RVIZ config file to use",
     )
 

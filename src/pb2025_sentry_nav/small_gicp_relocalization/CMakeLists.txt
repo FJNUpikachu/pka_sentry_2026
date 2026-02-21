@@ -14,15 +14,18 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(ament_cmake_auto REQUIRED)
 find_package(OpenMP REQUIRED)
 
-# 1. 查找 PCL (本地安装必须显式查找)
+# 1. 查找 PCL
 find_package(PCL REQUIRED COMPONENTS common io kdtree search registration filters)
 
 # 2. 查找本地安装的 small_gicp
 find_package(small_gicp REQUIRED)
 
 # 3. 查找本地安装的 ndt_omp
-# 注意：koide3/ndt_omp 安装后的 CMake 包名通常是 ndt_omp
 find_package(ndt_omp REQUIRED)
+
+# 4. 查找 nav_msgs 和 OpenCV 用于 2D 重定位模式
+find_package(nav_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
 
 ament_auto_find_build_dependencies()
 
@@ -37,16 +40,16 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
 # 包含目录
 target_include_directories(${PROJECT_NAME} PUBLIC
   ${PCL_INCLUDE_DIRS}
-  # small_gicp 和 ndt_omp 的 include 路径通常会自动通过下面的 target_link 传递
-  # 如果编译报错找不到头文件，检查你的库是否安装到了系统路径 (/usr/local/include)
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 # 链接库
 target_link_libraries(${PROJECT_NAME} 
   OpenMP::OpenMP_CXX
-  small_gicp::small_gicp  # small_gicp 导出的标准 target
-  ndt_omp                 # ndt_omp 导出的 target (通常叫 ndt_omp)
+  small_gicp::small_gicp
+  ndt_omp
   ${PCL_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 # 注册组件
