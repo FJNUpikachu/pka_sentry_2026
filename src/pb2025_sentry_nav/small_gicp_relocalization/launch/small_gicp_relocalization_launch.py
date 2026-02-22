@@ -27,9 +27,15 @@ def generate_launch_description():
         parameters=[
             {
                 # 新增的模式控制与调试开关
-                "use_3d_method": True,    # 开启时使用 NDT+SmallGICP 3D重定位，关闭时使用 OpenCV 特征匹配2D重定位
-                "debug": True,            # 统一的调试开关 (输出时间、误差等信息，如果是OpenCV还会保存图片在 /tmp)
+                "use_3d_method": False,   # 开启时使用 NDT+SmallGICP 3D重定位，关闭时使用 OpenCV 特征匹配2D重定位
+                "debug": True,            # 统一的调试开关 
                 "map_topic": "map",       # nav2 发布的 2D 栅格地图话题
+
+                # OpenCV 2D重定位参数 (完全映射左侧Python算法配置)
+                "max_iterations": 30,
+                "stop_search_threshold_f1": 50.0,
+                "lidar_max_range": 8.0,
+                "dist_tolerance": 0.15,
 
                 # 基础参数
                 "num_threads": 4,

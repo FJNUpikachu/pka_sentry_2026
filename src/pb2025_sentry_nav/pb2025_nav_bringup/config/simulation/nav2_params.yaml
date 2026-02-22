@@ -162,8 +162,8 @@ fake_vel_transform:
 small_gicp_relocalization:
   ros__parameters:
     use_sim_time: True
-    use_3d_method: True
-    debug: false
+    use_3d_method: false
+    debug: true
     use_ndt: true
     error_threshold: 0.2
     skip_step: 2
@@ -172,6 +172,7 @@ small_gicp_relocalization:
     global_leaf_size: 0.1
     registered_leaf_size: 0.05
     max_dist_sq: 10.0
+    input_cloud_topic: "registered_scan" #registered_scan terrain_map_ext
     map_frame: "map"
     odom_frame: "odom"
     base_frame: "base_footprint"
@@ -184,7 +185,10 @@ small_gicp_relocalization:
 
     # The prior_pcd_file does not need to be specified since it going to be set by defaults in launch.
     # prior_pcd_file: ""
-
+    lidar_max_range: 8.0 #雷达测量最大范围
+    dist_tolerance: 0.25 #距离变换寻点的宽容度
+    max_iterations: 50 #最大随机采样计算次数
+    stop_search_threshold_f1: 50.0
 
 
 pointcloud_to_laserscan:

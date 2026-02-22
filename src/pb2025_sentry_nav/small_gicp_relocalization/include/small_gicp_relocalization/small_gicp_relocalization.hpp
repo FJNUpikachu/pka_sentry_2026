@@ -28,7 +28,6 @@ inline void serialize(Archive& /*ar*/, std::unordered_map<K, V>& /*map*/) {}
 
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
@@ -48,6 +47,7 @@ inline void serialize(Archive& /*ar*/, std::unordered_map<K, V>& /*map*/) {}
 
 // OpenCV 用于 2D 栅格重定位
 #include <opencv2/opencv.hpp>
+#include <opencv2/features2d.hpp>
 
 namespace small_gicp_relocalization
 {
@@ -65,6 +65,10 @@ private:
   void performOpenCVRegistration();
   void publishTransform();
   void initialPoseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+
+  // 模拟雷达射线与纯正 F1 得分计算函数 (完全对标 Python)
+  cv::Mat simulateScan(int cx, int cy, int img_size, int center, double lidar_range_px);
+  double getF1Score(const cv::Mat& reference_img, const cv::Mat& tf_img);
 
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pcd_sub_;
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
@@ -104,8 +108,13 @@ private:
 
   // OpenCV 2D 地图资源
   cv::Mat global_map_2d_;
+  cv::Mat map_dist_img_; // 缓存的全局距离变换图
   double map_resolution_2d_;
   geometry_msgs::msg::Pose map_origin_2d_;
+  
+  // 增加连续性记忆状态：记录上一次最好的位置
+  cv::Point last_best_pt_;
+  double last_best_score_;
 
   // 3D 重定位资源
   std::shared_ptr<pclomp::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ>> ndt_omp_;

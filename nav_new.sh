@@ -39,7 +39,7 @@ source install/setup.sh
 cmds=(
 "ros2 launch rmu_gazebo_simulator bringup_sim.launch.py"
 "ros2 launch pb2025_nav_bringup rm_sentry_simulation_launch.py \
-world:=rmuc_2025 \
+world:=rmul_2025 \
 slam:=False \
 mapping:=False \
 use_composition:=False"
