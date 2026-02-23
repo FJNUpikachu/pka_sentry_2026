@@ -159,6 +159,7 @@ fake_vel_transform:
     cmd_spin_topic: "cmd_spin"
     init_spin_speed: 3.14
 
+    
 small_gicp_relocalization:
   ros__parameters:
     use_sim_time: True
