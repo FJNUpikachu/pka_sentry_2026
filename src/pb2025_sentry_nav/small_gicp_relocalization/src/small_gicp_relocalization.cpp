@@ -61,9 +61,10 @@ SmallGicpRelocalizationNode::SmallGicpRelocalizationNode(const rclcpp::NodeOptio
   // 3D 模式特有参数 (NDT)
   this->declare_parameter("use_ndt", true);
   this->declare_parameter("ndt_resolution", 1.0);
+  this->declare_parameter("ndt_step_size", 0.1);
+  this->declare_parameter("ndt_epsilon", 0.01);
   this->declare_parameter("ndt_num_threads", 4);
   this->declare_parameter("error_threshold", 1.0);
-  this->declare_parameter("skip_step", 4);
 
   // 2D 模式精华参数
   this->declare_parameter("lidar_max_range", 8.0);
@@ -91,11 +92,13 @@ SmallGicpRelocalizationNode::SmallGicpRelocalizationNode(const rclcpp::NodeOptio
   this->get_parameter("prior_pcd_file", prior_pcd_file_);
   this->get_parameter("init_pose", init_pose_);
   this->get_parameter("input_cloud_topic", input_cloud_topic_);
+  
   this->get_parameter("use_ndt", use_ndt_);
   this->get_parameter("ndt_resolution", ndt_resolution_);
+  this->get_parameter("ndt_step_size", ndt_step_size_);
+  this->get_parameter("ndt_epsilon", ndt_epsilon_);
   this->get_parameter("ndt_num_threads", ndt_num_threads_);
   this->get_parameter("error_threshold", error_threshold_);
-  this->get_parameter("skip_step",skip_step_);
 
   is_lost_ = true; 
   if (!init_pose_.empty() && init_pose_.size() >= 6) {
@@ -115,15 +118,10 @@ SmallGicpRelocalizationNode::SmallGicpRelocalizationNode(const rclcpp::NodeOptio
 
   if (use_3d_method_) {
     global_map_ = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    target_cloud_xyz_ = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(); // 初始化 NDT 目标
     register_ = std::make_shared<
       small_gicp::Registration<small_gicp::GICPFactor, small_gicp::ParallelReductionOMP>>();
 
-    if (use_ndt_) {
-      ndt_omp_ = std::make_shared<pclomp::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ>>();
-      ndt_omp_->setResolution(ndt_resolution_);
-      ndt_omp_->setNumThreads(ndt_num_threads_);
-      ndt_omp_->setNeighborhoodSearchMethod(pclomp::DIRECT7);
-    }
     loadGlobalMap(prior_pcd_file_);
   } else {
     rclcpp::QoS map_qos(rclcpp::KeepLast(1));
@@ -185,13 +183,24 @@ void SmallGicpRelocalizationNode::loadGlobalMap(const std::string & file_name)
     return;
   }
 
-  Eigen::Affine3d base_to_lidar;
-  try {
-    auto tf_stamped = tf_buffer_->lookupTransform(
-      base_frame_, lidar_frame_, rclcpp::Time(0), rclcpp::Duration::from_seconds(2.0));
-    base_to_lidar = tf2::transformToEigen(tf_stamped.transform);
-  } catch (...) {
-    base_to_lidar = Eigen::Affine3d::Identity();
+  // 恢复旧版本稳健的 TF 查找逻辑
+  Eigen::Affine3d base_to_lidar = Eigen::Affine3d::Identity();
+  bool tf_found = false;
+  
+  for(int i = 0; i < 5; i++) {
+      try {
+        auto tf_stamped = tf_buffer_->lookupTransform(
+          base_frame_, lidar_frame_, rclcpp::Time(0), std::chrono::seconds(1)); 
+        base_to_lidar = tf2::transformToEigen(tf_stamped.transform);
+        tf_found = true;
+        break;
+      } catch (tf2::TransformException & ex) {
+        RCLCPP_WARN(this->get_logger(), "TF lookup failed (%d/5): %s", i+1, ex.what());
+      }
+  }
+  
+  if (!tf_found) {
+      RCLCPP_ERROR(this->get_logger(), "FAILED to find TF base->lidar after 5 seconds! Map might be misaligned!");
   }
   
   pcl::transformPointCloud(*global_map_, *global_map_, base_to_lidar);
@@ -205,17 +214,12 @@ void SmallGicpRelocalizationNode::loadGlobalMap(const std::string & file_name)
   target_tree_ = std::make_shared<small_gicp::KdTree<pcl::PointCloud<pcl::PointCovariance>>>(
     target_, small_gicp::KdTreeBuilderOMP(num_threads_));
 
-  if (use_ndt_ && ndt_omp_) {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr ndt_target(new pcl::PointCloud<pcl::PointXYZ>());
-    ndt_target->points.reserve(target_->size());
-    for (const auto& pt : target_->points) {
-      ndt_target->points.emplace_back(pt.x, pt.y, pt.z);
-    }
-    ndt_target->width = target_->width;
-    ndt_target->height = target_->height;
-    ndt_target->is_dense = target_->is_dense;
-    ndt_omp_->setInputTarget(ndt_target);
-  }
+  // 恢复旧版本制备 NDT Target 的逻辑
+  double ndt_leaf = std::max<double>(global_leaf_size_, 0.5);
+  target_cloud_xyz_ = small_gicp::voxelgrid_sampling_omp<
+      pcl::PointCloud<pcl::PointXYZ>, pcl::PointCloud<pcl::PointXYZ>>(
+      *global_map_, ndt_leaf);
+  RCLCPP_INFO(this->get_logger(), "NDT target prepared. Points: %zu", target_cloud_xyz_->points.size());
 }
 
 void SmallGicpRelocalizationNode::registeredPcdCallback(
@@ -314,11 +318,6 @@ void SmallGicpRelocalizationNode::performOpenCVRegistration()
 
   // 3. 构建智能采样点集合 (绿点)
   std::vector<cv::Point> samples;
-  std::vector<cv::Point> all_pts;
-  cv::findNonZero(candidates_mask, all_pts);
-  if (all_pts.empty()) return;
-
-  std::shuffle(all_pts.begin(), all_pts.end(), std::default_random_engine(std::random_device{}()));
   
   // 【优化：引入连续性记忆】如果上一次的匹配得分还不错(比如 >15)，说明机器人很可能就在附近。
   // 将上一次的最优位置和其邻域点优先塞入本次采样队列中，打破从零开始的纯随机性。
@@ -338,10 +337,36 @@ void SmallGicpRelocalizationNode::performOpenCVRegistration()
       }
   }
 
-  // 用随机点填满剩余迭代次数
-  for (size_t i = 0; i < all_pts.size() && samples.size() < (size_t)max_iterations; ++i) {
-    samples.push_back(all_pts[i]);
+  // 【新增：空间排除机制】避免随机采样点扎堆，提高全局搜索的覆盖率
+  cv::Mat valid_mask = candidates_mask.clone();
+  // 根据地图分辨率计算排他半径 (相当于物理距离 1.0 米，在 0.05m/px 分辨率下恰好对应 Python 中的 20 像素)
+  int exclusion_radius = std::max(1, (int)std::round(1.0 / map_resolution_2d_)); 
+
+  // 把连续性记忆点周围的区域先从掩码中剔除，避免在该区域重复盲搜
+  for (const auto& pt : samples) {
+      cv::circle(valid_mask, pt, exclusion_radius, cv::Scalar(0), -1);
   }
+
+  std::vector<cv::Point> all_pts;
+  cv::findNonZero(valid_mask, all_pts);
+  
+  if (!all_pts.empty()) {
+      std::shuffle(all_pts.begin(), all_pts.end(), std::default_random_engine(std::random_device{}()));
+      
+      // 用通过空间排除机制的随机点填满剩余迭代次数
+      for (const auto& pt : all_pts) {
+          if (samples.size() >= (size_t)max_iterations) break;
+          
+          // 核心机制：如果该点所在的区域还没被本轮其他采样点覆盖/排除
+          if (valid_mask.at<uchar>(pt.y, pt.x) == 255) {
+              samples.push_back(pt);
+              // 采纳该点后，立即在掩码上画黑圆，排除周围一定半径的邻域
+              cv::circle(valid_mask, pt, exclusion_radius, cv::Scalar(0), -1);
+          }
+      }
+  }
+
+  if (samples.empty()) return;
 
   // 4. 将 3D 点云投影为 2D 扫描图像 (Robot-centric)
   int img_size = std::ceil((lidar_max_range * 2.0) / map_resolution_2d_);
@@ -512,63 +537,175 @@ void SmallGicpRelocalizationNode::performOpenCVRegistration()
 }
 
 // -------------------------------------------------------------------------
-// 原始 3D 模式 (点云对齐)
+// 融合并恢复旧版本鲁棒的 3D 模式 (NDT + GICP 组合)
 // -------------------------------------------------------------------------
 void SmallGicpRelocalizationNode::performRegistration()
 {
   if (accumulated_cloud_->empty()) return;
 
+  // 使用独立接口运行 2D
   if (!use_3d_method_) {
     performOpenCVRegistration();
     return;
   }
 
-  std::chrono::high_resolution_clock::time_point t_start;
-  if (debug_) t_start = std::chrono::high_resolution_clock::now();
+  std::chrono::high_resolution_clock::time_point t_total_start, t_ndt_start, t_ndt_end, t_gicp_start, t_gicp_end;
+  if (debug_) {
+    t_total_start = std::chrono::high_resolution_clock::now();
+    RCLCPP_INFO(this->get_logger(), "\n================ [3D Registration Debug] ================");
+    RCLCPP_INFO(this->get_logger(), "[Input] Raw Points: %zu | NDT Target Points: %zu", accumulated_cloud_->size(), target_cloud_xyz_->size());
+  }
+
+  if (!target_ || target_->empty()) {
+    if (debug_) RCLCPP_WARN(this->get_logger(), "[Error] Target map is empty! Aborting 3D registration.");
+    return;
+  }
+
+  // --- 0. 预处理 (Preprocessing) 生成用于 NDT 的 XYZ 点云 ---
+  auto source_xyz = small_gicp::voxelgrid_sampling_omp<
+    pcl::PointCloud<pcl::PointXYZ>, pcl::PointCloud<pcl::PointXYZ>>(
+    *accumulated_cloud_, registered_leaf_size_);
+
+  if (source_xyz->empty()) return;
+
+  if (debug_) {
+    RCLCPP_INFO(this->get_logger(), "[Preprocess] Downsampled Source XYZ Points: %zu", source_xyz->size());
+  }
+
+  Eigen::Isometry3d ndt_result = previous_result_t_;
+  bool ndt_converged = false;
+  double ndt_score = 1000.0;
+
+  // --- 1. 粗配准: NDT (Coarse Registration) 恢复旧逻辑 ---
+  if (use_ndt_) {
+    if (debug_) t_ndt_start = std::chrono::high_resolution_clock::now();
+
+    pclomp::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt_omp;
+    ndt_omp.setResolution(ndt_resolution_);
+    ndt_omp.setTransformationEpsilon(ndt_epsilon_);
+    ndt_omp.setStepSize(ndt_step_size_);
+    ndt_omp.setNumThreads(ndt_num_threads_);
+    ndt_omp.setNeighborhoodSearchMethod(pclomp::KDTREE); 
+    
+    ndt_omp.setInputSource(source_xyz);
+    ndt_omp.setInputTarget(target_cloud_xyz_); 
+
+    pcl::PointCloud<pcl::PointXYZ> unused_result;
+    Eigen::Matrix4f init_guess = previous_result_t_.matrix().cast<float>();
+    
+    ndt_omp.align(unused_result, init_guess);
+
+    if (ndt_omp.hasConverged()) {
+        ndt_converged = true;
+        ndt_score = ndt_omp.getFitnessScore();
+        ndt_result.matrix() = ndt_omp.getFinalTransformation().cast<double>();
+    }
+
+    if (debug_) {
+        t_ndt_end = std::chrono::high_resolution_clock::now();
+        double ndt_time = std::chrono::duration<double, std::milli>(t_ndt_end - t_ndt_start).count();
+        RCLCPP_INFO(this->get_logger(), "[NDT] Converged: %s | Score: %.4f | Time: %.2f ms", 
+                    ndt_converged ? "True" : "False", ndt_score, ndt_time);
+        if (!ndt_converged) {
+            RCLCPP_WARN(this->get_logger(), "[NDT] Warning: NDT did not converge, using previous guess.");
+        }
+    }
+  }
+
+  // --- 策略优化: NDT 极优则跳过 GICP ---
+  // 阈值不再写死，使用配置好的 error_threshold_ 的一半作为完美匹配的判断依据
+  if (use_ndt_ && ndt_converged && ndt_score < (error_threshold_ * 0.5)) {
+      result_t_ = previous_result_t_ = ndt_result;
+      is_lost_ = false; // 标记成功，给 2D 状态共享
+      
+      if (debug_) {
+          RCLCPP_INFO(this->get_logger(), "[Decision] NDT Score (%.4f) < %.4f (Perfect Match!). Skipping GICP.", ndt_score, error_threshold_ * 0.5);
+          double total_time = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - t_total_start).count();
+          RCLCPP_INFO(this->get_logger(), "[Result] STATUS: SUCCESS (NDT Only) | Total Time: %.2f ms", total_time);
+          RCLCPP_INFO(this->get_logger(), "=========================================================\n");
+      }
+      accumulated_cloud_->clear();
+      return; 
+  }
+
+  // --- 2. 精配准: Small GICP (Fine Registration) ---
+  if (debug_) t_gicp_start = std::chrono::high_resolution_clock::now();
 
   source_ = small_gicp::voxelgrid_sampling_omp<
     pcl::PointCloud<pcl::PointXYZ>, pcl::PointCloud<pcl::PointCovariance>>(
     *accumulated_cloud_, registered_leaf_size_);
-  
+
+  if (!source_ || source_->empty()) return;
+
   small_gicp::estimate_covariances_omp(*source_, num_neighbors_, num_threads_);
-  source_tree_ = std::make_shared<small_gicp::KdTree<pcl::PointCloud<pcl::PointCovariance>>>(
-    source_, small_gicp::KdTreeBuilderOMP(num_threads_));
+  
+  register_->reduction.num_threads = num_threads_;
+  
+  // 动态调整搜索范围
+  if (!ndt_converged) {
+      register_->rejector.max_dist_sq = max_dist_sq_ * 5.0; 
+  } else {
+      register_->rejector.max_dist_sq = max_dist_sq_;
+  }
+  
+  // 迭代次数不再写死，动态读取参数服务器的 max_iterations
+  int max_iters = this->get_parameter("max_iterations").as_int();
+  register_->optimizer.max_iterations = max_iters;
 
-  if (!source_ || !source_tree_) return;
-
-  Eigen::Isometry3d final_guess = previous_result_t_;
-
-  if (use_ndt_ && is_lost_ && ndt_omp_) {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr ndt_source(new pcl::PointCloud<pcl::PointXYZ>());
-    ndt_source->points.reserve(source_->size() / skip_step_);
-    for (size_t i = 0; i < source_->size(); i += skip_step_) {
-        ndt_source->points.emplace_back(source_->points[i].x, source_->points[i].y, source_->points[i].z);
-    }
-    ndt_omp_->setInputSource(ndt_source);
-    pcl::PointCloud<pcl::PointXYZ> unused;
-    ndt_omp_->align(unused, previous_result_t_.matrix().cast<float>());
-    if (ndt_omp_->hasConverged()) {
-        final_guess.matrix() = ndt_omp_->getFinalTransformation().cast<double>();
-    }
+  if (debug_) {
+      RCLCPP_INFO(this->get_logger(), "[GICP] Start. Max_dist_sq: %.2f | Max Iters: %d", register_->rejector.max_dist_sq, max_iters);
   }
 
-  register_->reduction.num_threads = num_threads_;
-  register_->rejector.max_dist_sq = max_dist_sq_;
-  auto result = register_->align(*target_, *source_, *target_tree_, final_guess);
+  // 执行 GICP
+  auto result = register_->align(*target_, *source_, *target_tree_, ndt_result);
+  
+  // 将总残差平摊到每个点，计算直观的平均误差，不再依赖单纯的 result.converged
+  double avg_err = result.error / (double)source_->size();
 
-  if (result.converged) {
+  if (debug_) {
+      t_gicp_end = std::chrono::high_resolution_clock::now();
+      double gicp_time = std::chrono::duration<double, std::milli>(t_gicp_end - t_gicp_start).count();
+      RCLCPP_INFO(this->get_logger(), "[GICP] Converged: %s | Avg Error: %.4f | Time: %.2f ms", 
+                  result.converged ? "True" : "False", avg_err, gicp_time);
+  }
+
+  // 使用真正的 error_threshold_ 进行硬性判断
+  if (result.converged && avg_err <= error_threshold_) {
     result_t_ = previous_result_t_ = result.T_target_source;
-    double avg_err = result.error / (double)source_->size();
-    is_lost_ = (avg_err > error_threshold_);
+    is_lost_ = false; // 标记成功
+    
+    if (debug_) {
+        RCLCPP_INFO(this->get_logger(), "[Decision] GICP Success. Avg Error %.4f <= %.2f", avg_err, error_threshold_);
+    }
   } else {
-    is_lost_ = true;
+    // --- 降级处理 (Fallback) ---
+    // 如果 GICP 发散，或者 GICP 虽然收敛但平均误差超过了 error_threshold_
+    // 此时如果 NDT 是收敛的，且 NDT 得分尚可（小于 error_threshold_ 即可），则回退到 NDT 位姿
+    if (use_ndt_ && ndt_converged && ndt_score < error_threshold_) {
+        result_t_ = previous_result_t_ = ndt_result;
+        is_lost_ = false; 
+        
+        if (debug_) {
+            if (result.converged) {
+                RCLCPP_WARN(this->get_logger(), "[Fallback] GICP Error too high (%.4f > %.2f). Reverting to NDT pose (Score: %.4f).", avg_err, error_threshold_, ndt_score);
+            } else {
+                RCLCPP_WARN(this->get_logger(), "[Fallback] GICP diverged. Reverting to NDT pose (Score: %.4f < %.2f).", ndt_score, error_threshold_);
+            }
+        }
+    } else {
+        is_lost_ = true; // 完全迷失
+        if(debug_){
+            RCLCPP_ERROR(this->get_logger(), "[Fallback] Registration failed! GICP Avg Err: %.4f, NDT Score: %.4f (Threshold: %.2f)", avg_err, ndt_score, error_threshold_);
+        }
+    }
   }
 
   if (debug_) {
-    auto t_end = std::chrono::high_resolution_clock::now();
-    double ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
-    RCLCPP_INFO(this->get_logger(), "3D 点云配准完成. 耗时: %.2f ms", ms);
+    double total_time = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - t_total_start).count();
+    RCLCPP_INFO(this->get_logger(), "[Result] STATUS: %s | Total Time: %.2f ms", is_lost_ ? "LOST" : "SUCCESS", total_time);
+    RCLCPP_INFO(this->get_logger(), "=========================================================\n");
   }
+
   accumulated_cloud_->clear();
 }
 
@@ -598,7 +735,7 @@ void SmallGicpRelocalizationNode::publishTransform()
 void SmallGicpRelocalizationNode::initialPoseCallback(
   const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
 {
-  RCLCPP_INFO(this->get_logger(), "收到 InitialPose，重置状态为 LOST 以触发 OpenCV 全局搜索.");
+  RCLCPP_INFO(this->get_logger(), "收到 InitialPose，重置状态为 LOST 以触发重新搜索或配准.");
   Eigen::Isometry3d m_to_b = Eigen::Isometry3d::Identity();
   m_to_b.translation() << msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z;
   m_to_b.linear() = Eigen::Quaterniond(msg->pose.pose.orientation.w, msg->pose.pose.orientation.x, 

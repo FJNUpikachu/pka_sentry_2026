@@ -86,10 +86,11 @@ private:
 
   bool use_ndt_;
   double ndt_resolution_;
+  double ndt_step_size_;
+  double ndt_epsilon_;
   double error_threshold_;
   int ndt_num_threads_;
   bool is_lost_;
-  int skip_step_;
   std::vector<double> init_pose_;
 
   std::string map_frame_;
@@ -117,7 +118,7 @@ private:
   double last_best_score_;
 
   // 3D 重定位资源
-  std::shared_ptr<pclomp::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ>> ndt_omp_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud_xyz_; // 恢复旧代码中用于 NDT 的 Target
   pcl::PointCloud<pcl::PointXYZ>::Ptr global_map_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr registered_scan_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr accumulated_cloud_;
