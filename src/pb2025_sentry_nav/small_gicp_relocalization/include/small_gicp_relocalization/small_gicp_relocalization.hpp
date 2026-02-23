@@ -15,22 +15,11 @@
 #ifndef SMALL_GICP_RELOCALIZATION__SMALL_GICP_RELOCALIZATION_HPP_
 #define SMALL_GICP_RELOCALIZATION__SMALL_GICP_RELOCALIZATION_HPP_
 
-#include <unordered_map>
-#include <vector>
-
-// 解决 PCL 和 OpenCV 在 C++17 下一起编译时，由 FLANN 引起的 std::unordered_map 序列化报错 bug
-namespace flann {
-namespace serialization {
-template<typename Archive, typename K, typename V>
-inline void serialize(Archive& /*ar*/, std::unordered_map<K, V>& /*map*/) {}
-}
-}
-
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
-#include "nav_msgs/msg/occupancy_grid.hpp"
 #include "pcl/io/pcd_io.h"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -45,10 +34,6 @@ inline void serialize(Archive& /*ar*/, std::unordered_map<K, V>& /*map*/) {}
 #include "tf2_ros/transform_listener.h"
 #include <small_gicp/pcl/pcl_point_traits.hpp> 
 
-// OpenCV 用于 2D 栅格重定位
-#include <opencv2/opencv.hpp>
-#include <opencv2/features2d.hpp>
-
 namespace small_gicp_relocalization
 {
 
@@ -59,38 +44,27 @@ public:
 
 private:
   void registeredPcdCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
-  void mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
   void loadGlobalMap(const std::string & file_name);
   void performRegistration();
-  void performOpenCVRegistration();
   void publishTransform();
   void initialPoseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
 
-  // 模拟雷达射线与纯正 F1 得分计算函数 (完全对标 Python)
-  cv::Mat simulateScan(int cx, int cy, int img_size, int center, double lidar_range_px);
-  double getF1Score(const cv::Mat& reference_img, const cv::Mat& tf_img);
-
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pcd_sub_;
-  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initial_pose_sub_;
-
-  // 开关与参数
-  bool use_3d_method_;  // 控制 3D (NDT+GICP) 还是 2D (OpenCV) 模式
-  bool debug_;          // 调试开关
 
   int num_threads_;
   int num_neighbors_;
   float global_leaf_size_;
   float registered_leaf_size_;
   float max_dist_sq_;
-
+  // 【新增】NDT 参数
   bool use_ndt_;
   double ndt_resolution_;
-  double ndt_step_size_;
-  double ndt_epsilon_;
   double error_threshold_;
   int ndt_num_threads_;
+  bool debug_;
   bool is_lost_;
+  int skip_step_;
   std::vector<double> init_pose_;
 
   std::string map_frame_;
@@ -101,24 +75,13 @@ private:
   std::string lidar_frame_;
   std::string current_scan_frame_id_;
   std::string input_cloud_topic_;
-  std::string map_topic_;
-
   rclcpp::Time last_scan_time_;
   Eigen::Isometry3d result_t_;
   Eigen::Isometry3d previous_result_t_;
 
-  // OpenCV 2D 地图资源
-  cv::Mat global_map_2d_;
-  cv::Mat map_dist_img_; // 缓存的全局距离变换图
-  double map_resolution_2d_;
-  geometry_msgs::msg::Pose map_origin_2d_;
-  
-  // 增加连续性记忆状态：记录上一次最好的位置
-  cv::Point last_best_pt_;
-  double last_best_score_;
-
-  // 3D 重定位资源
-  pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud_xyz_; // 恢复旧代码中用于 NDT 的 Target
+  // 【新增】pclomp NDT 对象
+  // 使用 shared_ptr 以便在构造函数中初始化
+  std::shared_ptr<pclomp::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ>> ndt_omp_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr global_map_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr registered_scan_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr accumulated_cloud_;

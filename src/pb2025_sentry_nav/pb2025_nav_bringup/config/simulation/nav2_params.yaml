@@ -162,8 +162,7 @@ fake_vel_transform:
 small_gicp_relocalization:
   ros__parameters:
     use_sim_time: True
-    use_3d_method: false
-    debug: true
+    debug: false
     use_ndt: true
     error_threshold: 0.2
     skip_step: 2
