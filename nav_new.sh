@@ -40,7 +40,7 @@ cmds=(
 "ros2 launch rmu_gazebo_simulator bringup_sim.launch.py"
 "ros2 launch pb2025_nav_bringup rm_sentry_simulation_launch.py \
 world:=rmuc_2025 \
-slam:=False \
+slam:=True \
 mapping:=False \
 use_composition:=False"
 # "ros2 run rmoss_gz_base test_chassis_cmd.py --ros-args -r __ns:=/red_standard_robot1/robot_base -p v:=1.0 -p w:=0.3"

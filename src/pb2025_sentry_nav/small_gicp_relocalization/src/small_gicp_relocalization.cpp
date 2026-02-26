@@ -311,8 +311,7 @@ void SmallGicpRelocalizationNode::performRegistration()
         is_lost_ = false; // 稳定模式
     } else {
         is_lost_ = true;  // 丢失模式
-        // 只有非 debug 模式下才打印关键警告
-        if (!debug_) RCLCPP_WARN(this->get_logger(), "Tracking unstable (Err: %.2f). Enabling NDT.", avg_error);
+        if (debug_) RCLCPP_WARN(this->get_logger(), "Tracking unstable (Err: %.2f). Enabling NDT.", avg_error);
     }
 
   } else {

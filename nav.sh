@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # 1. 确保在工作空间根目录 (如果脚本在 src 下，cd .. 会回到 ros_ws)
-cd ..
+# cd ..
 
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
-# colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 2
+# colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 2
 # colcon build --symlink-install --parallel-workers 2
 # colcon build --packages-select small_gicp_relocalization 
 
