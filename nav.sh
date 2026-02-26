@@ -72,3 +72,4 @@ for i in "${!cmds[@]}"; do
         sleep 5
     fi
 done
+
