@@ -32,7 +32,7 @@ CalculateAttackPoseAction::CalculateAttackPoseAction(
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-  declare_parameter_if_not_declared(node_, name + ".attack_radius", rclcpp::ParameterValue(3.0));
+  declare_parameter_if_not_declared(node_, name + ".attack_radius", rclcpp::ParameterValue(1.5));
   declare_parameter_if_not_declared(node_, name + ".num_sectors", rclcpp::ParameterValue(36));
   declare_parameter_if_not_declared(node_, name + ".cost_threshold", rclcpp::ParameterValue(50));
   declare_parameter_if_not_declared(
@@ -43,7 +43,7 @@ CalculateAttackPoseAction::CalculateAttackPoseAction(
     node_, name + ".max_visualization_distance", rclcpp::ParameterValue(6.0));
   declare_parameter_if_not_declared(
     node_, name + ".marker_scale_base", rclcpp::ParameterValue(0.2));
-  declare_parameter_if_not_declared(node_, name + ".visualize", rclcpp::ParameterValue(false));
+  declare_parameter_if_not_declared(node_, name + ".visualize", rclcpp::ParameterValue(true));
 
   node_->get_parameter(name + ".attack_radius", params_.attack_radius);
   node_->get_parameter(name + ".num_sectors", params_.num_sectors);

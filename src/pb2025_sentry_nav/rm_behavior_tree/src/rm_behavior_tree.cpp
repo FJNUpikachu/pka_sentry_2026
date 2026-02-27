@@ -43,6 +43,9 @@ int main(int argc, char ** argv)
   params_calculate_attack_pose.nh = std::make_shared<rclcpp::Node>("calculate_attack_pose");
   params_calculate_attack_pose.default_port_value = "calculate_attack_pose";
 
+  BT::RosNodeParams params_send_nav2_goal;
+  params_send_nav2_goal.nh = std::make_shared<rclcpp::Node>("send_nav2_goal");
+  params_send_nav2_goal.default_port_value = "navigate_to_pose";
 
   // clang-format off
   const std::vector<std::string> msg_update_plugin_libs = {
@@ -52,7 +55,8 @@ int main(int argc, char ** argv)
     "sub_armors",
     "sub_decision_num",
     "sub_rfid_status",
-    // "sub_global_costmap",
+    "sub_global_costmap",
+    "sub_target",
   };
 
   const std::vector<std::string> bt_plugin_libs = {
@@ -93,6 +97,8 @@ int main(int argc, char ** argv)
   RegisterRosNode(factory, BT::SharedLibrary::getOSName("can_fire"), params_can_fire);
 
   RegisterRosNode(factory, BT::SharedLibrary::getOSName("calculate_attack_pose"), params_calculate_attack_pose);
+
+  RegisterRosNode(factory, BT::SharedLibrary::getOSName("send_nav2_goal"), params_send_nav2_goal);
 
   auto tree = factory.createTreeFromFile(bt_xml_path);
 

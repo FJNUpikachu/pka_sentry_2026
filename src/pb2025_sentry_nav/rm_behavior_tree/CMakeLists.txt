@@ -131,6 +131,16 @@ ament_auto_add_library(sub_armors SHARED
 )
 add_target_dependencies(sub_armors)
 
+ament_auto_add_library(sub_global_costmap SHARED 
+    plugins/action/sub_global_costmap.cpp
+)
+add_target_dependencies(sub_global_costmap)
+
+ament_auto_add_library(sub_target SHARED 
+    plugins/action/sub_target.cpp
+)
+add_target_dependencies(sub_target)
+
 ament_auto_add_library(sub_decision_num SHARED
     plugins/action/sub_decision_num.cpp
 )
@@ -175,6 +185,11 @@ ament_auto_add_library(pub_nav2_goal SHARED
     plugins/action/pub_nav2_goal.cpp
 )
 add_target_dependencies(pub_nav2_goal)
+
+ament_auto_add_library(send_nav2_goal SHARED 
+    plugins/action/send_nav2_goal.cpp
+)
+add_target_dependencies(send_nav2_goal)
 
 ament_auto_add_library(calculate_attack_pose SHARED 
     plugins/action/calculate_attack_pose.cpp

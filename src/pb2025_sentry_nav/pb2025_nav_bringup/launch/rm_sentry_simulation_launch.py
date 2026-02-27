@@ -19,7 +19,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription,SetEnvironmentVariable
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, TextSubstitution
+from launch.substitutions import LaunchConfiguration, TextSubstitution,PythonExpression
 from launch_ros.actions import Node
 from launch_ros.descriptions import ParameterFile
 from nav2_common.launch import RewrittenYaml
@@ -29,6 +29,9 @@ def generate_launch_description():
     # Get the launch directory
     bringup_dir = get_package_share_directory("pb2025_nav_bringup")
     launch_dir = os.path.join(bringup_dir, "launch")
+
+    behaviortree_dir = get_package_share_directory("rm_behavior_tree")
+    behavior_launch_dir = os.path.join(behaviortree_dir, "launch")
 
     # Create the launch configuration variables
     namespace = LaunchConfiguration("namespace")
@@ -47,6 +50,7 @@ def generate_launch_description():
     scd_directory = LaunchConfiguration("scd_directory")
     pose_file = LaunchConfiguration("pose_file")
     pgm_map_file = LaunchConfiguration("pgm_map_file")
+    style = LaunchConfiguration("style")
 
     configured_params = ParameterFile(
         RewrittenYaml(
@@ -175,6 +179,11 @@ def generate_launch_description():
         "use_rviz", default_value="True", description="Whether to start RVIZ"
     )
 
+    declare_style_cmd = DeclareLaunchArgument(
+        "style",
+        default_value="test5",
+    )
+
     start_velodyne_convert_tool = Node(
         package="ign_sim_pointcloud_tool",
         executable="ign_sim_pointcloud_tool_node",
@@ -233,6 +242,16 @@ def generate_launch_description():
         }]
     )
 
+    behaviortree_cmd = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(behavior_launch_dir, "rm_behavior_tree.launch.py")),
+        condition=IfCondition(PythonExpression(["not ", mapping])),
+        launch_arguments={
+            "use_sim_time": use_sim_time,
+            "style": style,
+        }.items(),
+    )
+
+
     ld = LaunchDescription()
     ld.add_action(SetEnvironmentVariable('OMP_NUM_THREADS', '4')) 
     # Declare the launch options
@@ -252,12 +271,14 @@ def generate_launch_description():
     ld.add_action(declare_mapping_cmd)
     ld.add_action(declare_use_respawn_cmd)
     ld.add_action(declare_pgm_map_file_cmd)
+    ld.add_action(declare_style_cmd)
 
     # Add the actions to launch all of the navigation nodes
     ld.add_action(start_velodyne_convert_tool)
     ld.add_action(bringup_cmd)
     ld.add_action(joy_teleop_cmd)
     ld.add_action(rviz_cmd)
+    ld.add_action(behaviortree_cmd)
     # ld.add_action(start_rm_serial_node)
 
     return ld

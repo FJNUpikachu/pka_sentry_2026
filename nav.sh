@@ -4,7 +4,7 @@
 # cd ..
 
 # colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 2
+# colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 2
 # colcon build --symlink-install --parallel-workers 2
 # colcon build --packages-select small_gicp_relocalization 
 
@@ -43,7 +43,7 @@ source install/setup.bash
 # 3. 定义要同时启动的命令数组
 cmds=(
 "ros2 launch rmu_gazebo_simulator bringup_sim.launch.py"
-"ros2 launch pb2025_nav_bringup rm_sentry_simulation_launch.py world:=rmuc_2025 slam:=False mapping:=False use_composition:=False"
+"ros2 launch pb2025_nav_bringup rm_sentry_simulation_launch.py world:=rmul_2025 slam:=True mapping:=False use_composition:=False style:=zhuiji"
 # "ros2 run rmoss_gz_base test_chassis_cmd.py --ros-args -r __ns:=/red_standard_robot1/robot_base -p v:=1.0 -p w:=0.3"
 )
 
